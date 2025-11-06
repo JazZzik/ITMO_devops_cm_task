@@ -3,13 +3,32 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-cg6*%6d51ef8f#4!r3*$vmxm4)abgjw8mo!4y-q*uq1!4$-89$'
+def env_bool(key, default=False):
+    val = os.environ.get(key)
+    if val is None or val == "":
+        return default
+    return val.lower() in ("1", "true", "yes", "on")
 
-DEBUG = True
+def env_list(key, default=None, sep=","):
+    raw = os.environ.get(key)
+    if raw is None or raw == "":
+        return default if default is not None else []
+    return [p.strip() for p in raw.split(sep) if p.strip()]
 
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    'django-insecure-cg6*%6d51ef8f#4!r3*$vmxm4)abgjw8mo!4y-q*uq1!4$-89$'
+)
 
-STATIC_ROOT = "/app/collected_static"
+DEBUG = env_bool("DEBUG", True)
+
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["*"])
+
+STATIC_URL = "/static/"
+STATIC_ROOT = os.environ.get("STATIC_ROOT", "/static")
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/media")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -57,8 +76,12 @@ WSGI_APPLICATION = 'kittygram_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': os.environ.get('POSTGRES_DB', 'postgres'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
 
