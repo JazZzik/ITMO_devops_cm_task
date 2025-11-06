@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgres:13
+    container_name: postgres
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: kittygram_backend
+    container_name: backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DEBUG=True
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+      - media:/media
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             exec gunicorn kittygram_backend.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: kittygram_frontend
+    container_name: frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - frontend_static:/app/build
+
+  gateway:
+    image: b10nicle/kittygram_gateway:latest
+    platform: linux/amd64
+    container_name: gateway
+    ports:
+      - "8080:80"
+    volumes:
+      - frontend_static:/var/html/static/
+      - backend_static:/var/html/backend
+      - media:/var/html/media
+    depends_on:
+      - backend
+      - frontend
+    restart: always
+    networks:
+      - default
+
+volumes:
+  frontend_static:
+  backend_static:
+  media:
+  pg_data:
